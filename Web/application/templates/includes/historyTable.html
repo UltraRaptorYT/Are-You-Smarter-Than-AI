@@ -1,0 +1,163 @@
+<div class="flex items-center justify-between mt-5">
+  <h3 class="text-lg font-bold">Past History</h3>
+  <div class="search py-2 justify-center">
+    <label class="m-0" for="filter">Search</label>
+    <input type="text" name="filter" value="" id="filter" class="py-1 px-2" />
+  </div>
+</div>
+<div class="overflow-x-auto relative">
+  {% if entries|length > 0 %}
+  <table class="border-collapse w-full table-auto" id="mainProductTable">
+    <thead>
+      <tr>
+        <th class="whitespace-nowrap sorted-desc">Predicted Date</th>
+        <th class="whitespace-nowrap">Prediction</th>
+        <th class="whitespace-nowrap max-w-[90px] w-[90px] unsortable">Image</th>
+        <th class="whitespace-nowrap">Model</th>
+        <th class="whitespace-nowrap">Dataset</th>
+        <th class="unsortable">Functions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+      <tr class="even:bg-indigo-100 odd:bg-rose-200">
+        <td class="whitespace-nowrap">
+          {{ entry.predicted_on.strftime("%d %b %y %H:%M")}}
+        </td>
+        <td class="whitespace-nowrap">{{dataset_description[entry.dataType]["classLabels"][entry.prediction]}}</td>
+        <td class="whitespace-nowrap">
+          <img
+            src="{{entry.filePath.replace('application/', '')}}"
+            class="cursor-pointer w-full mx-auto aspect-square object-contain"
+            onclick="openImage(this)"
+          />
+        </td>
+        <td class="whitespace-nowrap">{{ entry.modelType }}</td>
+        <td class="whitespace-nowrap">{{ entry.dataType }}</td>
+        <td class="whitespace-nowrap">
+          <form action="/delete/{{entry.id}}" method="post">
+            <input
+              class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full text-sm"
+              value="Delete"
+              type="submit"
+            />
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="flex flex-col justify-center items-center">
+    <h1 class="text-4xl py-5 text-center">No Past History Found</h1>
+    <a
+      class="py-2 px-6 bg-blue-500 hover:bg-blue-600 text-sm text-white rounded-full transition duration-200"
+      href="/predict"
+      >Predict</a
+    >
+  </div>
+  {%endif%}
+</div>
+
+<script
+  src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"
+  integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+  crossorigin="anonymous"
+></script>
+<script>
+  function openImage(imgElement) {
+    console.log(imgElement.src);
+    window.open(imgElement.src, "_blank");
+  }
+
+  $("#mainProductTable thead th").each(function (column) {
+    if (!$(this).hasClass("unsortable")) {
+      $(this)
+        .addClass("sortable")
+        .click(function () {
+          var findSortKey = function ($cell) {
+            return (
+              $cell.find(".sort-key").text().toUpperCase() +
+              " " +
+              $cell.text().toUpperCase()
+            );
+          };
+          var sortDirection = $(this).is(".sorted-asc") ? -1 : 1;
+          var $rows = $(this)
+            .parent()
+            .parent()
+            .parent()
+            .parent()
+            .find("#mainProductTable tbody tr")
+            .get();
+          $.each($rows, function (index, row) {
+            row.sortKey = findSortKey($(row).children("td").eq(column));
+          });
+          $rows.sort(function (a, b) {
+            if ($.isNumeric(a.sortKey) && $.isNumeric(b.sortKey)) {
+              if (parseFloat(a.sortKey) < parseFloat(b.sortKey))
+                return -sortDirection;
+              if (parseFloat(a.sortKey) > parseFloat(b.sortKey))
+                return sortDirection;
+            } else if (a.sortKey.includes("$") && b.sortKey.includes("$")) {
+              if (
+                parseFloat(a.sortKey.replace("$", "")) <
+                parseFloat(b.sortKey.replace("$", ""))
+              )
+                return -sortDirection;
+              if (
+                parseFloat(a.sortKey.replace("$", "")) >
+                parseFloat(b.sortKey.replace("$", ""))
+              )
+                return sortDirection;
+            } else {
+              if (a.sortKey < b.sortKey) return -sortDirection;
+              if (a.sortKey > b.sortKey) return sortDirection;
+              return 0;
+            }
+          });
+          $.each($rows, function (index, row) {
+            $("#mainProductTable tbody").append(row);
+            row.sortKey = null;
+          });
+          $("#mainProductTable th").removeClass("sorted-asc sorted-desc");
+          var $sortHead = $("#mainProductTable th").filter(
+            ":nth-child(" + (column + 1) + ")"
+          );
+          sortDirection == 1
+            ? $sortHead.addClass("sorted-asc")
+            : $sortHead.addClass("sorted-desc");
+          $("#mainProductTable td")
+            .removeClass("sorted")
+            .filter(":nth-child(" + (column + 1) + ")")
+            .addClass("sorted");
+        });
+    }
+  });
+
+  function filter(selector, query) {
+    query = $.trim(query);
+    query = query.replace(/ /gi, "|");
+    $(selector).each(function () {
+      $(this).text().search(new RegExp(query, "i")) < 0
+        ? $(this).hide().removeClass("visible")
+        : $(this).show().addClass("visible");
+    });
+  }
+
+  $("#filter").keyup(function (event) {
+    if (event.keyCode == 27 || $(this).val() == "") {
+      $(this).val("");
+      $("#mainProductTable tbody tr")
+        .removeClass("visible")
+        .show()
+        .addClass("visible");
+    } else {
+      filter("#mainProductTable tbody tr", $(this).val());
+    }
+  });
+</script>
+<link
+  rel="stylesheet"
+  href="{{ url_for('static',filename='css/history.css')}}"
+/>

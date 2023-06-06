@@ -1,0 +1,115 @@
+{% extends "base.html" %} {% block content %}{% include "includes/nav.html" %}
+<div class="px-5 py-8 relative w-full flex flex-col" id="main">
+  <div class="marquee" id="top">
+    <ul class="marquee__content">
+      {% for image in imageArr[:number]%}
+      <li class="marquee__item">
+        <img src="{{ url_for('static',filename='images/cifar100/' + image) }}" />
+      </li>
+      {% endfor %}
+    </ul>
+    <ul class="marquee__content">
+      {% for image in imageArr[:number]%}
+      <li class="marquee__item">
+        <img src="{{ url_for('static',filename='images/cifar100/' + image) }}" />
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="grow flex justify-center items-center flex-col gap-5 py-6">
+    <h2 class="text-5xl md:text-6xl font-bold w-full md:w-1/2 lg:w-1/3 text-center">
+      ARE YOU SMARTER THAN AN AI?
+    </h2>
+    <div class="flex gap-6">
+      <a
+        class="py-2 px-6 bg-blue-500 hover:bg-blue-600 text-sm text-white rounded-full transition duration-200"
+        href="/predict"
+        >Predict</a
+      ><a
+        class="py-2 px-6 bg-blue-500 hover:bg-blue-600 text-sm text-white rounded-full transition duration-200"
+        href="/quiz"
+        >Quiz</a
+      >
+    </div>
+  </div>
+  <div class="marquee" id="bottom">
+    <ul class="marquee__content reverse">
+      {% for i in imageArr[number:number*2]%}
+      <li class="marquee__item">
+        <img src="{{ url_for('static',filename='images/cifar100/' + i) }}" />
+      </li>
+      {% endfor %}
+    </ul>
+    <ul class="marquee__content reverse">
+      {% for i in imageArr[number:number*2]%}
+      <li class="marquee__item">
+        <img src="{{ url_for('static',filename='images/cifar100/' + i) }}" />
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+<style>
+  body {
+    overflow: hidden;
+  }
+  .marquee {
+    --gap: 1rem;
+    position: relative;
+    display: flex;
+    overflow: hidden;
+    user-select: none;
+    gap: var(--gap);
+  }
+
+  .marquee__content {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-around;
+    gap: var(--gap);
+    min-width: 100%;
+    animation: scroll 15s linear infinite;
+  }
+
+  .marquee__content.reverse {
+    animation: scroll 15s linear infinite reverse;
+  }
+
+  .marquee__item {
+    aspect-ratio: 1;
+    width: 75px;
+  }
+  .marquee__item img {
+    width: 100%;
+  }
+
+  @keyframes scroll {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(calc(-100% - var(--gap)));
+    }
+  }
+
+  @media screen and (max-width: 360px) {
+    .marquee__item {
+      aspect-ratio: 1;
+      width: 40px;
+    }
+  }
+</style>
+{% include "includes/footer.html" %}
+<script>
+  var remainingHeight =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--vh")
+      .replace("px", "") * 100;
+
+  document.getElementById("main").style.height =
+    remainingHeight -
+    document.getElementsByTagName("nav")[0].clientHeight -
+    document.getElementsByTagName("footer")[0].clientHeight +
+    "px";
+</script>
+{% endblock %}

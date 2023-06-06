@@ -1,0 +1,291 @@
+{% extends "base.html" %} {% block content %}{% include "includes/nav.html" %}
+<link rel="stylesheet" href="{{ url_for('static',filename='css/quiz.css')}}" />
+<div
+  class="px-5 py-8 pb-16 relative w-full mx-auto flex justify-center gap-4 w-full xl:w-1/3 items-stretch flex-col"
+  id="main"
+>
+  <h2 class="text-4xl text-center">Quiz</h2>
+  <p class="text-center mb-2">
+    Are you smarter than an AI?<br />Choose your AI difficulty
+  </p>
+  <div class="flex items-start w-full gap-5 xl:self-center" id="AI">
+    <select class="w-[250px]" id="AISelect">
+      <option selected disabled value="">Select AI</option>
+      <option value="vgg16">VGG16</option>
+      <option value="efficient">EfficientNet</option>
+    </select>
+    <div id="AIInfo" class="w-full px-3 min-h-[100px]  flex flex-col gap-3">&nbsp;</div>
+  </div>
+  <div class="flex items-start w-full gap-5 xl:self-center" id="dataset">
+    <select class="w-[250px]" id="datasetSelect">
+      <option selected disabled value="">Select Dataset</option>
+      <option value="fine">Fine</option>
+      <option value="coarse">Coarse</option>
+    </select>
+    <div id="datasetInfo" class="w-full px-3 h-[100px]">&nbsp;</div>
+  </div>
+  <div class="flex flex-col gap-6">
+    <p>Number of questions:</p>
+    <div class="range-slider">
+      <div id="slider_thumb" class="range-slider_thumb"></div>
+      <div class="range-slider_line">
+        <div id="slider_line" class="range-slider_line-fill"></div>
+      </div>
+      <input
+        id="slider_input"
+        class="range-slider_input"
+        type="range"
+        value="5"
+        min="1"
+        max="10"
+      />
+    </div>
+  </div>
+  <button
+    class="py-2 px-6 mt-12 mx-auto w-2/3 bg-blue-500 hover:bg-blue-600 text-sm text-white rounded-full transition duration-200 text-center"
+    type="button"
+    style="white-space: nowrap"
+    id="startQuiz"
+  >
+    Start Quiz
+  </button>
+</div>
+{% include "includes/footer.html" %}
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+  var ai_description = JSON.parse(`{{ ai_description | tojson }}`);
+  var dataset_description = JSON.parse(`{{ dataset_description | tojson }}`);
+
+  document.getElementById("AISelect").addEventListener("change", () => {
+    document.getElementById("AIInfo").innerHTML =
+      `<p>${ai_description[document.getElementById("AISelect").value].description}</p>
+      <p class="text-center"><b><u>Accuracy of model</u></b></p>
+      <table class="w-full border-collapse w-full table-auto">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Fine</th>
+            <th>Coarse</th>
+          </tr>  
+        </thead>
+        <tbody>
+          <tr>
+            <th>Train</th>
+            <td>${ai_description[document.getElementById("AISelect").value]['fine']['train']}%</td>
+            <td>${ai_description[document.getElementById("AISelect").value]['coarse']['train']}%</td>
+          </tr>
+          <tr>
+            <th>Test</th>
+            <td>${ai_description[document.getElementById("AISelect").value]['fine']['test']}%</td>
+            <td>${ai_description[document.getElementById("AISelect").value]['coarse']['test']}%</td>
+          </tr>
+        </tbody>
+      </table>`
+  });
+
+  document.getElementById("datasetSelect").addEventListener("change", () => {
+    document.getElementById("datasetInfo").innerHTML =
+      dataset_description[
+        document.getElementById("datasetSelect").value
+      ].description;
+  });
+
+  document.getElementById("startQuiz").addEventListener("click", () => {
+    if (!document.getElementById("AISelect").value) {
+      return alert("Please select AI Model");
+    }
+    if (!document.getElementById("datasetSelect").value) {
+      return alert("Please select Dataset Type");
+    }
+    var aiSelect = document.getElementById("AISelect").value;
+    var datasetSelect = document.getElementById("datasetSelect").value;
+    var qnNo = document.getElementById("slider_input").value;
+    startQuiz(aiSelect, datasetSelect, qnNo);
+  });
+  var progress;
+  var quizAnsArr = [];
+  var quizPredArr = [];
+  var quizImageArr = [];
+  var quizImageList = [];
+
+  function startQuiz(model, data, qnNo) {
+    progress = 1;
+    document.getElementById("main").innerHTML = `
+  <div class="flex flex-col gap-5">
+    <p id="quizProgress">
+      <span id="progress">${progress}</span>/<span id="totalProgress">${qnNo}</span>
+    </p>
+    <h2 class="text-4xl text-center">What is this?</h2>
+    <div id="imgContainer">
+    </div>
+    <div id="selectContainer" class="flex flex-col gap-5">
+      <select id="classSelect">
+        <option selected disabled value="">Select Class</option>
+      </select>
+    </div>
+  </div>
+    `;
+    quizMaker(model, data, progress, qnNo);
+  }
+
+  var imageArr = JSON.parse(`{{imageArr | tojson}}`);
+  var dataset_description = JSON.parse(`{{dataset_description | tojson}}`);
+
+  function quizMaker(model, data, progress, qnNo) {
+    if (document.getElementById("classSelect").value) {
+      quizAnsArr.push(parseInt(document.getElementById("classSelect").value));
+    }
+    if (progress > qnNo) {
+      var userAcc = 0;
+      var aiAcc = 0;
+      console.log(quizAnsArr);
+      console.log(quizPredArr);
+      console.log(quizImageArr);
+      for (idx in quizAnsArr) {
+        if (quizAnsArr[idx] == quizImageArr[idx]) {
+          userAcc += 1;
+        }
+        if (quizPredArr[idx] == quizImageArr[idx]) {
+          aiAcc += 1;
+        }
+      }
+      userAcc /= quizAnsArr.length;
+      aiAcc /= quizPredArr.length;
+      userAcc *= 100;
+      aiAcc *= 100;
+
+      document.getElementById("main").innerHTML = `
+      <div class="flex flex-col gap-5">
+        <h2 class="text-4xl">
+          ${
+            userAcc >= aiAcc
+              ? "Congratulations! You are smarter than an AI!"
+              : "Unfortunately, You are not smarter than an AI!"
+          }  
+        </h2>
+        <h4 class="text-2xl">You got a score of ${userAcc}% 
+          while the AI Model [${model}|${data}] has a score of ${aiAcc}%</h4>
+        <div class="flex gap-5 justify-center">
+          <a
+            class="py-2 px-6 bg-blue-500 hover:bg-blue-600 text-sm text-white rounded-full transition duration-200"
+            href="/quiz"
+            >Try Again?</a
+          >
+          <a
+            class="py-2 px-6 bg-blue-500 hover:bg-blue-600 text-sm text-white rounded-full transition duration-200"
+            href="/history#quiz"
+            >View history</a
+          >
+        </div>
+      </div>`;
+      axios
+        .post(window.location.href, {
+          model: model,
+          dataset: data,
+          imgs: quizImageList.join(","),
+          userScore: userAcc,
+          aiScore: aiAcc,
+        })
+        .then((response) => {
+          console.log(response.data["message"]);
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+      return;
+    }
+    document.getElementById("selectContainer").innerHTML = `
+      <select id="classSelect">
+        <option selected disabled value="">Select Class</option>
+      </select>`;
+    document.getElementById(
+      "classSelect"
+    ).innerHTML = `<option selected disabled value="">Select Class</option>`;
+    img = imageArr.shift();
+    if (data == "fine") {
+      quizImageArr.push(
+        Object.values(dataset_description[data]["classLabels"]).indexOf(
+          img.split("-")[1].replace(".png", "")
+        )
+      );
+    } else {
+      quizImageArr.push(
+        Object.values(dataset_description[data]["classLabels"]).indexOf(
+          img.split("-").slice(2).join("-").replace(".png", "")
+        )
+      );
+    }
+
+    quizImageList.push(`./application/static/images/cifar100/${img}`);
+    document.getElementById(
+      "imgContainer"
+    ).innerHTML = `<img src="/static/images/cifar100/${img}" class="w-full"/>  `;
+    for (var [idx, label] of Object.entries(
+      dataset_description[data]["classLabels"]
+    )) {
+      document.getElementById(
+        "classSelect"
+      ).innerHTML += `<option value="${idx}">${label}${data == "coarse" ? " - " + dataset_description[data]["superLabels"][label]: ""}</option>`;
+    }
+    document.getElementById("progress").innerHTML = progress;
+    document.getElementById("selectContainer").innerHTML += `
+    <button
+      class="py-2 px-6 mt-6 mx-auto w-2/3 bg-blue-500 hover:bg-blue-600 text-sm text-white rounded-full transition duration-200 text-center"
+      type="button"
+      style="white-space: nowrap"
+      onclick="quizMaker('${model}', '${data}', ${progress + 1}, ${qnNo})"
+    >
+      Submit
+    </button>
+    `;
+    fetch(`/static/images/cifar100/${img}`)
+      .then((res) => res.blob())
+      .then((blob) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          console.log(reader.result);
+
+          axios
+            .post(
+              window.location.href
+                .split("/")
+                .slice(0, window.location.href.split("/").length - 1)
+                .join("/") + "/predict",
+              {
+                model: model,
+                dataset: data,
+                imageBlob: reader.result,
+                imageName: img,
+                quiz: true,
+              }
+            )
+            .then((response) => {
+              quizPredArr.push(response.data["prediction"]);
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+        };
+        reader.readAsDataURL(blob);
+      });
+  }
+</script>
+<script>
+  const slider_input = document.getElementById("slider_input"),
+    slider_thumb = document.getElementById("slider_thumb"),
+    slider_line = document.getElementById("slider_line");
+
+  function showSliderValue() {
+    slider_thumb.innerHTML = slider_input.value;
+    const bulletPosition = slider_input.value / slider_input.max,
+      space = slider_input.offsetWidth - slider_thumb.offsetWidth;
+
+    slider_thumb.style.left = bulletPosition * space + "px";
+    slider_line.style.width = slider_input.value * 10 + "%";
+  }
+
+  showSliderValue();
+  window.addEventListener("resize", showSliderValue);
+  slider_input.addEventListener("input", showSliderValue, false);
+</script>
+{% endblock %}
